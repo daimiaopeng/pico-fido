@@ -10,7 +10,7 @@ jobs:
     name: Compile with Docker SDK
     runs-on: ubuntu-latest
     container:
-      image: lukstep/raspberry-pi-pico-docker-sdk:latest
+      image: lukstep/raspberry-pi-pico-sdk:latest
 
     steps:
       - name: Checkout Repository
