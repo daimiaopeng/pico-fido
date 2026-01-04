@@ -1,0 +1,51 @@
+name: Build Pico Fido for Pico 2 (RP2350)
+
+on:
+  push:
+    branches: [ "test" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compile with Docker SDK
+    runs-on: ubuntu-latest
+    container:
+      image: lukstep/raspberry-pi-pico-docker-sdk:latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 必须递归拉取子模块(pico-keys-sdk等)
+
+      - name: Generate Dummy Key (for build only)
+        # 项目构建可能需要 SECURE_BOOT_PKEY。如果没有真实密钥，生成一个临时的以确保编译通过。
+        run: |
+          openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+
+      - name: Configure CMake
+        # 使用 Docker 容器内的 PICO_SDK_PATH
+        # PICO_BOARD=pico2 对应 RP2350
+        # 显式启用 OATH 和 OTP 以提供类 YubiKey 功能
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -DPICO_BOARD=pico2 \
+            -DSECURE_BOOT_PKEY=../private.pem \
+            -DENABLE_OATH_APP=ON \
+            -DENABLE_OTP_APP=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVIDPID=Yubikey5
+
+      - name: Build Firmware
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pico-fido-rp2350-firmware
+          path: |
+            build/*.uf2
